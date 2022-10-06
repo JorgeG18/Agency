@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Ganancias{% endblock %}
+
+
+
+{% block css %}
+<link rel="stylesheet" href="{% static 'transportAgency/css/table.css' %}">
+<link rel="stylesheet" href="{% static 'transportAgency/css/tittle.css' %}">
+
+
+
+{% endblock %}
+
+
+{% block container %}
+<div class="container">
+
+    <div class="row justify-content-center m-4">
+        <div class="title">
+            <h1>Tabla de <span style="color: #6BA8A9;">Ganancias</span></h1>
+        </div>
+    </div>
+
+
+    <form action="{% url 'transportAgency:income_view' %}" method="post">
+        {% csrf_token %}
+        <div class="input-group mb-3">
+            <label for="" style="padding: 5px; font-size: 18px;">Desde: </label>
+            <input type="date" class="form-control" name="ticket-reservation-from" id="ticket-reservation-from"
+                placeholder="">
+            <label for="" style="padding: 5px; font-size: 18px;">Hasta: </label>
+            <input type="date" class="form-control" name="ticket-reservation-to" id="ticket-reservation-to"
+                placeholder="">
+
+            <button id="button-graph" class="btn" data-token="{{csrf_token}}"
+                data-url="{% url 'transportAgency:income_view' %}">
+                Buscar
+            </button>
+        </div>
+    </form>
+
+    <div id="show-buttons" style="display:none;text-align:center;margin-bottom:20px ;margin-top:20px ;">
+        <button class="btn" id="button-grafico">Gráfico</button>
+        <button class="btn" id="button-tabla">Tabla</button>
+    </div>
+    
+    <div class="row">
+        <div class="col">
+            <div class="shadow" id="graph" style="border-radius:5px"></div>
+            <div id="table-incomes" style="display:none"></div>
+        </div>
+    </div>
+    <br>
+    <br>
+
+    {% endblock %}
+
+
+
+
+
+    {% block js %}
+    <script src="https://code.highcharts.com/highcharts.js"></script>
+
+    <script>
+
+        $(function () {
+
+            $('#button-graph').click(function (event) {
+                event.preventDefault()
+
+                var $me = $(this)
+
+                var url = $me.data('url')
+                var token = $me.data('token')
+                var dateFrom = $('#ticket-reservation-from')
+                var dateTo = $('#ticket-reservation-to')
+
+                if (!dateFrom.val()){
+                    notify('error', 'Seleccione el primer campo de fecha');
+                    dateFrom.focus();
+                    return;
+                }
+
+                if (!dateTo.val()){
+                    notify('error', 'Seleccione el segundo campo de fecha');
+                    dateTo.focus();
+                    return;
+                }
+
+
+                ctx = {
+                    'csrfmiddlewaretoken': token,
+                    'date-from': dateFrom.val(),
+                    'date-to': dateTo.val(),
+
+                }
+
+            
+
+                $.post(url, ctx, function (response) {
+
+                    if (response.incomes.length) {
+
+                        
+
+                        var label = []
+                        for (var i = 0; i < response.incomes.length; i++) {
+                            label.push([response.incomes[i].ticket_reservation]);
+                        }
+
+                        Highcharts.chart('graph', {
+                            title: {
+                                text: 'Ganancias de las rutas por fecha:',
+                                
+                            },
+                            colors: ['#357376'],
+                            xAxis: {
+                                categories: label,
+                            },
+                            series: [{
+                                name: 'Ganancias: ',
+                                data: (function () {
+                                    var data = [];
+                                    for (var i = 0; i < response.incomes.length; i++) {
+                                        data.push([response.incomes[i].price]);
+                                    }
+                                    return data;
+                                })()
+                            }]
+                        });
+
+
+                        //Generar Tabla
+
+                        html = '<table class="rwd-table">'
+
+                        html += `
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Ganancias Totales</th>
+                                </tr>
+                            </thead>
+                        `
+
+                        for (var i = 0; i < response.incomes.length; i++) {
+                            html += `
+                                <tbody>
+                                    <tr>
+                                        <td>${response.incomes[i].ticket_reservation}</td>
+                                        <td>${response.incomes[i].price}</td>
+                                    </tr>
+                                
+                                </tbody>
+                            `
+                        }
+
+                        html += "</table>"
+
+
+
+                        $('#table-incomes').html(html)
+                        $('#show-buttons').css('display', 'block')
+
+                    } else {
+                        notify('error', "No se encontraron datos")
+                         $('#table-incomes').empty()
+                         $('#graph').empty()
+                        $('#show-buttons').css('display', 'none')
+                    }
+
+                })
+
+
+            })
+
+            $('#button-grafico').click(function (event) {
+                event.preventDefault()
+                $('#graph').css('display', 'block')
+                $('#table-incomes').css('display', 'none')
+
+
+            })
+            $('#button-tabla').click(function (event) {
+                event.preventDefault()
+                $('#graph').css('display', 'none')
+                $('#table-incomes').css('display', 'block')
+
+            })
+
+        })
+    </script>
+
+
+    {% endblock %}
